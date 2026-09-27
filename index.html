@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>90/180 tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style id="app-style">
+:root{
+  --paper:#F6F8FB; --surface:#FFFFFF; --ink:#18233A; --muted:#5B6782; --line:#DCE3EE;
+  --tile:#2456A6; --tile-soft:#DCE6F5; --tile-empty:#EEF2F8;
+  --ok:#2E7D5B; --warn:#B7790C; --bad:#B3261E; --plan:#7A9BD6;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0F1522; --surface:#161E2E; --ink:#E6ECF5; --muted:#9AA7BF; --line:#27324A;
+    --tile:#5C8EE0; --tile-soft:#1F2E4D; --tile-empty:#1B2436;
+    --ok:#5CC495; --warn:#E3AA3E; --bad:#F07A71; --plan:#3E5F9C;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F1522; --surface:#161E2E; --ink:#E6ECF5; --muted:#9AA7BF; --line:#27324A;
+  --tile:#5C8EE0; --tile-soft:#1F2E4D; --tile-empty:#1B2436;
+  --ok:#5CC495; --warn:#E3AA3E; --bad:#F07A71; --plan:#3E5F9C;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 Figtree,system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:28px 20px 64px}
+h1,h2{font-family:"Young Serif",Georgia,"Times New Roman",serif;font-weight:400;margin:0}
+h1{font-size:clamp(1.9rem,4.5vw,2.8rem);line-height:1.1;letter-spacing:-.01em}
+h2{font-size:1.45rem;margin-bottom:6px}
+p{margin:0}
+.sub{color:var(--muted);max-width:62ch}
+section{margin-top:44px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.save{font-size:.85rem;color:var(--muted)}
+.save.err{color:var(--bad)}
+
+/* hero */
+.hero{margin-top:26px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:28px;align-items:start}
+.lead-num{font-family:"Young Serif",Georgia,serif;font-size:clamp(4rem,11vw,6.5rem);line-height:.9;color:var(--tile)}
+.lead-label{font-size:1.05rem;margin-top:8px;max-width:28ch}
+.facts{margin-top:18px;display:grid;gap:10px}
+.fact{display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--line);padding-top:10px;font-size:.95rem}
+.fact span:first-child{color:var(--muted)}
+.fact strong{font-weight:600;text-align:right}
+.panel-cap{display:flex;justify-content:space-between;font-size:.85rem;color:var(--muted);margin-bottom:8px;gap:8px;flex-wrap:wrap}
+.ribbon{display:grid;grid-template-columns:repeat(30,minmax(0,1fr));gap:3px}
+.cell{aspect-ratio:1;border-radius:2px;background:var(--tile-empty)}
+.cell.on{background:var(--tile)}
+.cell.plan{background:var(--plan)}
+.cell.today{outline:2px solid var(--ink);outline-offset:1px}
+.legend{display:flex;gap:16px;margin-top:10px;font-size:.82rem;color:var(--muted);flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+
+.alert{margin-top:22px;padding:12px 14px;border-left:4px solid var(--bad);background:color-mix(in srgb,var(--bad) 10%,transparent);border-radius:4px}
+.alert.hidden{display:none}
+
+/* forms */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+label{display:grid;gap:4px;font-size:.85rem;color:var(--muted)}
+input[type=date],input[type=text]{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-height:40px}
+input[type=text]{min-width:180px}
+button{font:inherit;font-weight:600;border-radius:6px;border:1px solid var(--tile);background:var(--tile);color:#fff;padding:8px 14px;min-height:40px;cursor:pointer}
+button.ghost{background:transparent;color:var(--tile)}
+button.link{border:none;background:none;color:var(--muted);padding:4px 6px;min-height:0;font-weight:500}
+button.link:hover{color:var(--bad)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--tile);outline-offset:2px}
+.check{display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--ink)}
+
+/* calc */
+.calc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:18px;margin-top:16px}
+.result{display:grid;gap:10px}
+.verdict{font-size:1.15rem;font-weight:600}
+.verdict.ok{color:var(--ok)}.verdict.bad{color:var(--bad)}.verdict.warn{color:var(--warn)}
+.result .fact{font-size:.93rem}
+
+/* table */
+.scroll{overflow-x:auto;margin-top:16px}
+table{width:100%;border-collapse:collapse;font-size:.93rem;min-width:620px}
+th{text-align:left;font-weight:600;color:var(--muted);font-size:.82rem;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+td.num{font-variant-numeric:tabular-nums}
+.tag{font-size:.78rem;padding:2px 8px;border-radius:999px;background:var(--tile-soft);color:var(--ink);white-space:nowrap}
+.tag.plan{background:transparent;border:1px dashed var(--plan)}
+.tag.live{background:color-mix(in srgb,var(--warn) 20%,transparent)}
+.empty{color:var(--muted);padding:18px 0}
+
+/* chart */
+.chart{margin-top:14px;position:relative}
+.chart svg{width:100%;height:auto;display:block}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--paper);font-size:.8rem;padding:6px 8px;border-radius:6px;white-space:nowrap;transform:translate(-50%,-110%);display:none}
+.note{font-size:.85rem;color:var(--muted);margin-top:10px;max-width:70ch}
+
+@media (max-width:760px){
+  .hero,.calc{grid-template-columns:1fr}
+  .ribbon{gap:2px}
+}
+@media (prefers-reduced-motion:no-preference){
+  .cell.on{animation:fill .5s ease-out both;animation-delay:calc(var(--i) * 3ms)}
+  @keyframes fill{from{opacity:0}to{opacity:1}}
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header class="head">
+    <div>
+      <h1>Schengen days, 90 in any 180</h1>
+      <p class="sub" style="margin-top:8px">Every day he spends anywhere in the Schengen area counts, arrival and departure days included.</p>
+    </div>
+    <span class="save" id="save-status"></span>
+  </header>
+
+  <div class="hero">
+    <div>
+      <div class="lead-num" id="h-max">0</div>
+      <p class="lead-label" id="h-label">days he could stay if he arrived today</p>
+      <div class="facts">
+        <div class="fact"><span>Counted in the last 180 days</span><strong id="h-used"></strong></div>
+        <div class="fact"><span>Next day frees up</span><strong id="h-next"></strong></div>
+        <div class="fact"><span>Full 90 days back</span><strong id="h-full"></strong></div>
+        <div class="fact"><span>Wedding (UK)</span><strong id="h-wed"></strong></div>
+      </div>
+    </div>
+    <div>
+      <div class="panel-cap"><span id="rib-start"></span><span>The current 180-day window, one tile per day</span><span>Today</span></div>
+      <div class="ribbon" id="ribbon" role="img"></div>
+      <div class="legend">
+        <span><i style="background:var(--tile)"></i>Counted day</span>
+        <span><i style="background:var(--plan)"></i>Planned day</span>
+        <span><i style="background:var(--tile-empty)"></i>Free day</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert hidden" id="overstay"></div>
+
+  <section>
+    <h2>Plan a trip</h2>
+    <p class="sub">Pick an arrival date to see the latest safe departure. Add a departure date to check a specific plan.</p>
+    <div class="calc">
+      <div class="card">
+        <div class="row">
+          <label>Arrival<input type="date" id="c-in"></label>
+          <label>Departure (optional)<input type="date" id="c-out"></label>
+        </div>
+        <p class="note">To keep a plan, add it to trips.json with "planned": true.</p>
+      </div>
+      <div class="card result" id="c-result"><p class="empty">Choose an arrival date.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <div>
+        <h2>Trips</h2>
+        <p class="sub">These come from trips.json in the GitHub repo. Edit that file to add or change a trip.</p>
+      </div>
+      <label class="check"><input type="checkbox" id="use-plans" checked>Include planned trips in all figures</label>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Arrival</th><th>Departure</th><th>Days</th><th>Status</th><th>First day drops off</th><th>Fully cleared</th><th>Note</th></tr></thead>
+        <tbody id="t-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>How long he could stay, by arrival date</h2>
+    <p class="sub">Each point is the longest stay possible if he arrived that day, given the trips above. Hover or tap to read a date.</p>
+    <div class="chart" id="chart"><div class="tip" id="tip"></div></div>
+  </section>
+</div>
+
+<script id="app-script">
+(function(){
+  const PRISTINE_APP = document.getElementById('app').outerHTML;
+  const DAY = 86400000;
+  const toNum = s => { const [y,m,d] = s.split('-').map(Number); return Date.UTC(y,m-1,d)/DAY; };
+  const toISO = n => new Date(n*DAY).toISOString().slice(0,10);
+  const fmt = n => new Date(n*DAY).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
+  const fmtShort = n => new Date(n*DAY).toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'});
+  const now = new Date();
+  const TODAY = Date.UTC(now.getFullYear(),now.getMonth(),now.getDate())/DAY;
+  const $ = id => document.getElementById(id);
+
+  let data = {wedding:'2027-01-19', trips:[]};
+  let WED = toNum(data.wedding);
+
+  // ---------- engine ----------
+  let R0, R1, occ;
+  function active(){ return data.trips.filter(t => !t.planned || $('use-plans').checked); }
+  function build(trips){
+    const firsts = data.trips.map(t => toNum(t.entry));
+    R0 = Math.min(TODAY, ...firsts) - 400;
+    R1 = Math.max(TODAY, ...data.trips.map(t => toNum(t.exit))) + 900;
+    const a = new Uint8Array(R1 - R0 + 1);
+    for (const t of trips) for (let d = toNum(t.entry); d <= toNum(t.exit); d++) a[d-R0] = t.planned ? 2 : 1;
+    return a;
+  }
+  function count(a, d){ let c = 0; for (let x = d-179; x <= d; x++){ const i = x-R0; if (i >= 0 && i < a.length && a[i]) c++; } return c; }
+  function maxStay(a, E){
+    const b = a.slice(); let n = 0;
+    for (let d = E; n < 90 && d - R0 < b.length; d++){ b[d-R0] = b[d-R0] || 3; if (count(b,d) > 90) break; n++; }
+    return n;
+  }
+  function checkStay(a, E, X){
+    const b = a.slice(); let peak = 0, over = null;
+    for (let d = E; d <= X; d++){ b[d-R0] = b[d-R0] || 3; const c = count(b,d); if (c > peak) peak = c; if (c > 90 && over === null) over = d; }
+    return {peak, over, b};
+  }
+  function firstOverstay(a){
+    for (let i = 0; i < a.length; i++) if (a[i] && count(a, i+R0) > 90) return i+R0;
+    return null;
+  }
+
+  // ---------- render ----------
+  function render(){
+    const a = build(active());
+    const used = count(a, TODAY);
+    const inToday = a[TODAY-R0] ? 1 : 0;
+    const ms = maxStay(a, TODAY);
+    $('h-max').textContent = ms;
+    $('h-label').textContent = ms === 90 ? 'days he could stay if he arrived today, the full allowance' : 'days he could stay if he arrived today';
+    $('h-used').textContent = used + ' of 90';
+
+    let next = null;
+    for (let d = TODAY+1; d < TODAY+400; d++){ if (a[d-180-R0] && !a[d-R0]) { next = d; break; } }
+    $('h-next').textContent = next ? fmt(next) : 'Nothing counted';
+    let last = null;
+    for (let i = a.length-1; i >= 0; i--) if (a[i]) { last = i+R0; break; }
+    $('h-full').textContent = last === null ? 'Now' : (last+180 <= TODAY ? 'Now' : fmt(last+180));
+    const wd = WED - TODAY;
+    $('h-wed').textContent = fmt(WED) + (wd > 0 ? ', in ' + wd + ' days' : '');
+
+    // ribbon
+    const rib = $('ribbon'); rib.innerHTML = '';
+    for (let d = TODAY-179, i = 0; d <= TODAY; d++, i++){
+      const c = document.createElement('div'); const v = a[d-R0];
+      c.className = 'cell' + (v === 1 ? ' on' : v === 2 ? ' plan' : '') + (d === TODAY ? ' today' : '');
+      c.style.setProperty('--i', i); c.title = fmt(d) + (v ? ' counted' : ' free');
+      rib.appendChild(c);
+    }
+    rib.setAttribute('aria-label', used + ' of the last 180 days are counted');
+    $('rib-start').textContent = fmtShort(TODAY-179);
+
+    const ov = firstOverstay(a);
+    const al = $('overstay');
+    if (ov !== null){ al.classList.remove('hidden'); al.textContent = 'These trips break the rule: on ' + fmt(ov) + ' he would have ' + count(a, ov) + ' days in the window. Shorten or move a trip.'; }
+    else al.classList.add('hidden');
+
+    renderTable(); renderCalc(); renderChart(a);
+  }
+
+  function renderTable(){
+    const body = $('t-body'); body.innerHTML = '';
+    const trips = [...data.trips].sort((x,y) => x.entry < y.entry ? -1 : 1);
+    if (!trips.length){ body.innerHTML = '<tr><td colspan="7" class="empty">No trips found in trips.json.</td></tr>'; return; }
+    for (const t of trips){
+      const e = toNum(t.entry), x = toNum(t.exit);
+      let st = t.planned ? '<span class="tag plan">Planned</span>' : (x < TODAY ? '<span class="tag">Completed</span>' : e <= TODAY ? '<span class="tag live">In Portugal now</span>' : '<span class="tag">Booked</span>');
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>'+fmt(e)+'</td><td>'+fmt(x)+'</td><td class="num">'+(x-e+1)+'</td><td>'+st+'</td><td>'+fmt(e+180)+'</td><td>'+fmt(x+180)+'</td><td></td>';
+      tr.children[6].textContent = t.note || '';
+      body.appendChild(tr);
+    }
+  }
+
+  function renderCalc(){
+    const out = $('c-result'), vin = $('c-in').value, vout = $('c-out').value;
+    if (!vin){ out.innerHTML = '<p class="empty">Choose an arrival date.</p>'; return; }
+    const a = build(active()); const E = toNum(vin);
+    const usedOnArrival = (() => { let c = 0; for (let x = E-179; x < E; x++) if (a[x-R0]) c++; return c; })();
+    const m = maxStay(a, E);
+    const rows = [];
+    let verdict;
+    if (m === 0) verdict = '<p class="verdict bad">He cannot enter on ' + fmt(E) + '. The window is already full.</p>';
+    else verdict = '<p class="verdict ok">Latest safe departure: ' + fmt(E+m-1) + '</p>';
+    rows.push(['Longest possible stay', m + ' days']);
+    rows.push(['Already counted when he arrives', usedOnArrival + ' days']);
+    if (vout){
+      const X = toNum(vout);
+      if (X < E){ verdict = '<p class="verdict bad">Departure is before arrival.</p>'; }
+      else {
+        const r = checkStay(a, E, X);
+        const len = X-E+1;
+        if (r.over !== null) verdict = '<p class="verdict bad">Overstay. This ' + len + '-day trip goes over 90 on ' + fmt(r.over) + '. Leave by ' + fmt(E+m-1) + ' instead.</p>';
+        else verdict = '<p class="verdict ok">This ' + len + '-day trip is within the rule.</p>' + '<p class="note" style="margin:0">Latest safe departure from this arrival: ' + fmt(E+m-1) + '</p>';
+        rows.push(['Highest count during the trip', r.peak + ' of 90']);
+        if (r.over === null) rows.push(['Days left on departure day', (90 - count(r.b, X)) + '']);
+        const later = firstOverstay(r.b);
+        if (r.over === null && later !== null) rows.push(['Conflict with a later planned trip', fmt(later)]);
+      }
+    }
+    out.innerHTML = verdict + rows.map(([k,v]) => '<div class="fact"><span>'+k+'</span><strong>'+v+'</strong></div>').join('');
+  }
+
+  function renderChart(a){
+    const W = 1000, H = 300, P = {l:40, r:14, t:18, b:34};
+    const N = 366, xs = i => P.l + (W-P.l-P.r) * i/(N-1), ys = v => P.t + (H-P.t-P.b) * (1 - v/90);
+    const vals = []; for (let i = 0; i < N; i++) vals.push(maxStay(a, TODAY+i));
+    let path = 'M'+xs(0)+','+ys(vals[0]);
+    for (let i = 1; i < N; i++) path += 'H'+xs(i).toFixed(1)+'V'+ys(vals[i]).toFixed(1);
+    const area = path + 'V'+ys(0)+'H'+xs(0)+'Z';
+    let grid = '';
+    for (const v of [0,30,60,90]) grid += '<line x1="'+P.l+'" x2="'+(W-P.r)+'" y1="'+ys(v)+'" y2="'+ys(v)+'" stroke="var(--line)"/><text x="'+(P.l-8)+'" y="'+(ys(v)+4)+'" text-anchor="end" font-size="12" fill="var(--muted)">'+v+'</text>';
+    let months = '';
+    for (let i = 0; i < N; i++){ const dt = new Date((TODAY+i)*DAY); if (dt.getUTCDate() === 1) months += '<line x1="'+xs(i)+'" x2="'+xs(i)+'" y1="'+(H-P.b)+'" y2="'+(H-P.b+5)+'" stroke="var(--muted)"/><text x="'+xs(i)+'" y="'+(H-P.b+20)+'" text-anchor="middle" font-size="12" fill="var(--muted)">'+dt.toLocaleDateString('en-GB',{month:'short',timeZone:'UTC'})+'</text>'; }
+    let wed = '';
+    const wi = WED - TODAY;
+    if (wi >= 0 && wi < N) wed = '<line x1="'+xs(wi)+'" x2="'+xs(wi)+'" y1="'+P.t+'" y2="'+(H-P.b)+'" stroke="var(--warn)" stroke-dasharray="4 4" stroke-width="1.5"/><text x="'+(xs(wi)+6)+'" y="'+(P.t+12)+'" font-size="12" fill="var(--warn)">Wedding (UK)</text>';
+    const svg = '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Longest possible stay for each arrival date over the next year">'+grid+months+
+      '<path d="'+area+'" fill="var(--tile-soft)"/><path d="'+path+'" fill="none" stroke="var(--tile)" stroke-width="2"/>'+wed+
+      '<line id="cur" y1="'+P.t+'" y2="'+(H-P.b)+'" stroke="var(--ink)" stroke-width="1" style="display:none"/>'+
+      '<rect id="hit" x="'+P.l+'" y="'+P.t+'" width="'+(W-P.l-P.r)+'" height="'+(H-P.t-P.b)+'" fill="transparent"/></svg>';
+    const box = $('chart'); const tip = $('tip');
+    box.innerHTML = svg; box.appendChild(tip);
+    const s = box.querySelector('svg'), cur = s.querySelector('#cur'), hit = s.querySelector('#hit');
+    const move = ev => {
+      const r = s.getBoundingClientRect(); const px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
+      const sx = px * W / r.width; let i = Math.round((sx-P.l)/(W-P.l-P.r)*(N-1)); i = Math.max(0, Math.min(N-1, i));
+      cur.setAttribute('x1', xs(i)); cur.setAttribute('x2', xs(i)); cur.style.display = '';
+      tip.style.display = 'block'; tip.style.left = (xs(i)*r.width/W)+'px'; tip.style.top = (ys(vals[i])*r.height/H)+'px';
+      tip.textContent = 'Arrive ' + fmt(TODAY+i) + ': up to ' + vals[i] + ' days';
+    };
+    hit.addEventListener('mousemove', move); hit.addEventListener('touchmove', move, {passive:true}); hit.addEventListener('touchstart', move, {passive:true});
+    hit.addEventListener('mouseleave', () => { tip.style.display = 'none'; cur.style.display = 'none'; });
+    hit.addEventListener('click', ev => { const r = s.getBoundingClientRect(); let i = Math.round(((ev.clientX-r.left)*W/r.width-P.l)/(W-P.l-P.r)*(N-1)); i = Math.max(0,Math.min(N-1,i)); $('c-in').value = toISO(TODAY+i); $('c-out').value=''; renderCalc(); $('c-in').scrollIntoView({behavior:'smooth',block:'center'}); });
+  }
+
+  // ---------- load ----------
+  const status = (t, err) => { const el = $('save-status'); el.textContent = t; el.classList.toggle('err', !!err); };
+  const ISO = /^\d{4}-\d{2}-\d{2}$/;
+  async function load(){
+    try {
+      const r = await fetch('trips.json', {cache:'no-store'});
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      if (!Array.isArray(d.trips)) throw new Error('there is no "trips" list');
+      for (const t of d.trips) if (!ISO.test(t.entry) || !ISO.test(t.exit) || t.exit < t.entry) throw new Error('check the dates on the trip starting ' + t.entry + '. Use YYYY-MM-DD, with departure on or after arrival.');
+      d.trips.forEach((t,i) => { t.id = t.id || ('t'+i); t.planned = !!t.planned; });
+      data = d; if (d.wedding) WED = toNum(d.wedding);
+      status('Loaded from trips.json');
+    } catch(e){
+      status('Could not read trips.json: ' + e.message, true);
+    }
+    render();
+  }
+
+  // ---------- events ----------
+  $('use-plans').addEventListener('change', render);
+  $('c-in').addEventListener('input', renderCalc);
+  $('c-out').addEventListener('input', renderCalc);
+  load();
+})();
+</script>
+</body>
+</html>
