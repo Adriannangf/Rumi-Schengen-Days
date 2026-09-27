@@ -3,7 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="90/180">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#1F5FAE">
 <title>90/180 tracker</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -69,7 +77,10 @@ input[type=text]{min-width:180px}
 button{font:inherit;font-weight:600;border-radius:6px;border:1px solid var(--tile);background:var(--tile);color:#fff;padding:8px 14px;min-height:40px;cursor:pointer}
 button.ghost{background:transparent;color:var(--tile)}
 button.link{border:none;background:none;color:var(--muted);padding:4px 6px;min-height:0;font-weight:500}
-button.link:hover{color:var(--bad)}
+button.link:hover{color:var(--tile)}
+[hidden]{display:none!important}
+.ghost-btn{display:inline-flex;align-items:center;font-weight:600;font-size:1rem;color:var(--tile);border:1px solid var(--tile);border-radius:6px;padding:8px 14px;min-height:40px;cursor:pointer}
+.ghost-btn:focus-within{outline:2px solid var(--tile);outline-offset:2px}
 button:focus-visible,input:focus-visible{outline:2px solid var(--tile);outline-offset:2px}
 .check{display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--ink)}
 
@@ -143,16 +154,41 @@ td.num{font-variant-numeric:tabular-nums}
 
   <section>
     <h2>Plan a trip</h2>
-    <p class="sub">Pick an arrival date to see the latest safe departure. Add a departure date to check a specific plan.</p>
+    <p class="sub">Try out dates here. Nothing is saved unless you tap Save as planned trip.</p>
     <div class="calc">
       <div class="card">
         <div class="row">
           <label>Arrival<input type="date" id="c-in"></label>
           <label>Departure (optional)<input type="date" id="c-out"></label>
         </div>
-        <p class="note">To keep a plan, add it to trips.json with "planned": true.</p>
+        <div class="row" style="margin-top:14px">
+          <label style="flex:1">Note<input type="text" id="c-note" placeholder="After the wedding"></label>
+        </div>
+        <div class="row" style="margin-top:14px">
+          <button id="c-save" class="ghost" disabled>Save as planned trip</button>
+        </div>
       </div>
       <div class="card result" id="c-result"><p class="empty">Choose an arrival date.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2 id="f-title">Add a confirmed trip</h2>
+    <p class="sub">For trips he has actually made or is on now. Leave departure empty while he is still here.</p>
+    <div class="card" style="margin-top:16px">
+      <div class="row">
+        <label>Arrival<input type="date" id="t-in"></label>
+        <label>Departure<input type="date" id="t-out"></label>
+        <label style="flex:1">Note<input type="text" id="t-note" placeholder="Faro"></label>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <label class="check"><input type="checkbox" id="t-plan">This is a planned trip, not confirmed yet</label>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button id="t-add">Add trip</button>
+        <button id="t-cancel" class="ghost" hidden>Cancel</button>
+      </div>
+      <p class="note" id="t-err" style="color:var(--bad)"></p>
     </div>
   </section>
 
@@ -160,13 +196,13 @@ td.num{font-variant-numeric:tabular-nums}
     <div class="head">
       <div>
         <h2>Trips</h2>
-        <p class="sub">These come from trips.json in the GitHub repo. Edit that file to add or change a trip.</p>
+        <p class="sub">Saved on this device only.</p>
       </div>
       <label class="check"><input type="checkbox" id="use-plans" checked>Include planned trips in all figures</label>
     </div>
     <div class="scroll">
       <table>
-        <thead><tr><th>Arrival</th><th>Departure</th><th>Days</th><th>Status</th><th>First day drops off</th><th>Fully cleared</th><th>Note</th></tr></thead>
+        <thead><tr><th>Arrival</th><th>Departure</th><th>Days</th><th>Status</th><th>First day drops off</th><th>Fully cleared</th><th>Note</th><th></th></tr></thead>
         <tbody id="t-body"></tbody>
       </table>
     </div>
@@ -174,14 +210,23 @@ td.num{font-variant-numeric:tabular-nums}
 
   <section>
     <h2>How long he could stay, by arrival date</h2>
-    <p class="sub">Each point is the longest stay possible if he arrived that day, given the trips above. Hover or tap to read a date.</p>
+    <p class="sub">Each point is the longest stay possible if he arrived that day, given the trips above. Tap a point to load it into the planner.</p>
     <div class="chart" id="chart"><div class="tip" id="tip"></div></div>
+  </section>
+
+  <section>
+    <h2>Backup</h2>
+    <p class="sub">Trips are stored on this device only. Download a backup now and then, so nothing is lost if the phone is reset or replaced.</p>
+    <div class="row" style="margin-top:14px">
+      <button id="b-export" class="ghost">Download backup</button>
+      <label class="ghost-btn">Restore from backup<input type="file" id="b-import" accept="application/json,.json" hidden></label>
+    </div>
+    <p class="note" id="b-msg"></p>
   </section>
 </div>
 
-<script id="app-script">
+<script>
 (function(){
-  const PRISTINE_APP = document.getElementById('app').outerHTML;
   const DAY = 86400000;
   const toNum = s => { const [y,m,d] = s.split('-').map(Number); return Date.UTC(y,m-1,d)/DAY; };
   const toISO = n => new Date(n*DAY).toISOString().slice(0,10);
@@ -190,19 +235,23 @@ td.num{font-variant-numeric:tabular-nums}
   const now = new Date();
   const TODAY = Date.UTC(now.getFullYear(),now.getMonth(),now.getDate())/DAY;
   const $ = id => document.getElementById(id);
+  const ISO = /^\d{4}-\d{2}-\d{2}$/;
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
   let data = {wedding:'2027-01-19', trips:[]};
   let WED = toNum(data.wedding);
+  let editingId = null;
 
   // ---------- engine ----------
-  let R0, R1, occ;
+  const exitOf = t => t.exit ? toNum(t.exit) : Math.max(toNum(t.entry), TODAY);
+  let R0 = 0, R1 = 0;
   function active(){ return data.trips.filter(t => !t.planned || $('use-plans').checked); }
   function build(trips){
     const firsts = data.trips.map(t => toNum(t.entry));
     R0 = Math.min(TODAY, ...firsts) - 400;
-    R1 = Math.max(TODAY, ...data.trips.map(t => toNum(t.exit))) + 900;
+    R1 = Math.max(TODAY, ...data.trips.map(exitOf)) + 900;
     const a = new Uint8Array(R1 - R0 + 1);
-    for (const t of trips) for (let d = toNum(t.entry); d <= toNum(t.exit); d++) a[d-R0] = t.planned ? 2 : 1;
+    for (const t of trips) for (let d = toNum(t.entry); d <= exitOf(t); d++) a[d-R0] = t.planned ? 2 : 1;
     return a;
   }
   function count(a, d){ let c = 0; for (let x = d-179; x <= d; x++){ const i = x-R0; if (i >= 0 && i < a.length && a[i]) c++; } return c; }
@@ -220,15 +269,29 @@ td.num{font-variant-numeric:tabular-nums}
     for (let i = 0; i < a.length; i++) if (a[i] && count(a, i+R0) > 90) return i+R0;
     return null;
   }
+  // latest departure for an ongoing stay: build without that trip, then find max stay from its arrival
+  function latestExitFor(t){
+    const others = active().filter(z => z.id !== t.id);
+    const a = build(others);
+    const E = toNum(t.entry);
+    return E + maxStay(a, E) - 1;
+  }
 
   // ---------- render ----------
   function render(){
     const a = build(active());
     const used = count(a, TODAY);
-    const inToday = a[TODAY-R0] ? 1 : 0;
-    const ms = maxStay(a, TODAY);
-    $('h-max').textContent = ms;
-    $('h-label').textContent = ms === 90 ? 'days he could stay if he arrived today, the full allowance' : 'days he could stay if he arrived today';
+    const ongoing = data.trips.find(t => !t.planned && !t.exit);
+    if (ongoing){
+      const last = latestExitFor(ongoing);
+      const left = last - TODAY;
+      $('h-max').textContent = Math.max(0, left);
+      $('h-label').textContent = left < 0 ? 'He is past his limit. He should have left by ' + fmt(last) + '.' : 'days until he must leave. Latest departure: ' + fmt(last);
+    } else {
+      const ms = maxStay(a, TODAY);
+      $('h-max').textContent = ms;
+      $('h-label').textContent = 'days he could stay if he arrived today';
+    }
     $('h-used').textContent = used + ' of 90';
 
     let next = null;
@@ -236,11 +299,10 @@ td.num{font-variant-numeric:tabular-nums}
     $('h-next').textContent = next ? fmt(next) : 'Nothing counted';
     let last = null;
     for (let i = a.length-1; i >= 0; i--) if (a[i]) { last = i+R0; break; }
-    $('h-full').textContent = last === null ? 'Now' : (last+180 <= TODAY ? 'Now' : fmt(last+180));
+    $('h-full').textContent = last === null || last+180 <= TODAY ? 'Now' : fmt(last+180);
     const wd = WED - TODAY;
     $('h-wed').textContent = fmt(WED) + (wd > 0 ? ', in ' + wd + ' days' : '');
 
-    // ribbon
     const rib = $('ribbon'); rib.innerHTML = '';
     for (let d = TODAY-179, i = 0; d <= TODAY; d++, i++){
       const c = document.createElement('div'); const v = a[d-R0];
@@ -262,41 +324,50 @@ td.num{font-variant-numeric:tabular-nums}
   function renderTable(){
     const body = $('t-body'); body.innerHTML = '';
     const trips = [...data.trips].sort((x,y) => x.entry < y.entry ? -1 : 1);
-    if (!trips.length){ body.innerHTML = '<tr><td colspan="7" class="empty">No trips found in trips.json.</td></tr>'; return; }
+    if (!trips.length){ body.innerHTML = '<tr><td colspan="8" class="empty">No trips yet. Add his first arrival above.</td></tr>'; return; }
     for (const t of trips){
-      const e = toNum(t.entry), x = toNum(t.exit);
-      let st = t.planned ? '<span class="tag plan">Planned</span>' : (x < TODAY ? '<span class="tag">Completed</span>' : e <= TODAY ? '<span class="tag live">In Portugal now</span>' : '<span class="tag">Booked</span>');
+      const e = toNum(t.entry), x = exitOf(t);
+      let st;
+      if (t.planned) st = '<span class="tag plan">Planned</span>';
+      else if (!t.exit || (e <= TODAY && x >= TODAY)) st = '<span class="tag live">In Portugal now</span>';
+      else if (x < TODAY) st = '<span class="tag">Completed</span>';
+      else st = '<span class="tag">Booked</span>';
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td>'+fmt(e)+'</td><td>'+fmt(x)+'</td><td class="num">'+(x-e+1)+'</td><td>'+st+'</td><td>'+fmt(e+180)+'</td><td>'+fmt(x+180)+'</td><td></td>';
-      tr.children[6].textContent = t.note || '';
+      tr.innerHTML = '<td>'+fmt(e)+'</td><td>'+(t.exit ? fmt(x) : 'Still here')+'</td><td class="num">'+(x-e+1)+'</td><td>'+st+'</td><td>'+fmt(e+180)+'</td><td>'+(t.exit ? fmt(x+180) : 'After he leaves')+'</td><td>'+esc(t.note||'')+'</td><td style="white-space:nowrap"></td>';
+      const cell = tr.children[7];
+      const mk = (label, fn) => { const b = document.createElement('button'); b.className = 'link'; b.textContent = label; b.onclick = fn; cell.appendChild(b); };
+      mk('Edit', () => startEdit(t));
+      mk('Remove', () => {
+        const label = fmt(e) + (t.exit ? ' to ' + fmt(x) : ' (still here)');
+        if (confirm('Remove the trip from ' + label + '?')) mutate(d => { d.trips = d.trips.filter(z => z.id !== t.id); });
+      });
       body.appendChild(tr);
     }
   }
 
   function renderCalc(){
     const out = $('c-result'), vin = $('c-in').value, vout = $('c-out').value;
+    $('c-save').disabled = !(vin && vout && vout >= vin);
     if (!vin){ out.innerHTML = '<p class="empty">Choose an arrival date.</p>'; return; }
     const a = build(active()); const E = toNum(vin);
-    const usedOnArrival = (() => { let c = 0; for (let x = E-179; x < E; x++) if (a[x-R0]) c++; return c; })();
+    let usedOnArrival = 0; for (let x = E-179; x < E; x++) if (a[x-R0]) usedOnArrival++;
     const m = maxStay(a, E);
     const rows = [];
-    let verdict;
-    if (m === 0) verdict = '<p class="verdict bad">He cannot enter on ' + fmt(E) + '. The window is already full.</p>';
-    else verdict = '<p class="verdict ok">Latest safe departure: ' + fmt(E+m-1) + '</p>';
+    let verdict = m === 0 ? '<p class="verdict bad">He cannot enter on ' + fmt(E) + '. The window is already full.</p>'
+                          : '<p class="verdict ok">Latest safe departure: ' + fmt(E+m-1) + '</p>';
     rows.push(['Longest possible stay', m + ' days']);
     rows.push(['Already counted when he arrives', usedOnArrival + ' days']);
     if (vout){
       const X = toNum(vout);
-      if (X < E){ verdict = '<p class="verdict bad">Departure is before arrival.</p>'; }
+      if (X < E) verdict = '<p class="verdict bad">Departure is before arrival.</p>';
       else {
-        const r = checkStay(a, E, X);
-        const len = X-E+1;
+        const r = checkStay(a, E, X), len = X-E+1;
         if (r.over !== null) verdict = '<p class="verdict bad">Overstay. This ' + len + '-day trip goes over 90 on ' + fmt(r.over) + '. Leave by ' + fmt(E+m-1) + ' instead.</p>';
-        else verdict = '<p class="verdict ok">This ' + len + '-day trip is within the rule.</p>' + '<p class="note" style="margin:0">Latest safe departure from this arrival: ' + fmt(E+m-1) + '</p>';
+        else verdict = '<p class="verdict ok">This ' + len + '-day trip is within the rule.</p><p class="note" style="margin:0">Latest safe departure from this arrival: ' + fmt(E+m-1) + '</p>';
         rows.push(['Highest count during the trip', r.peak + ' of 90']);
-        if (r.over === null) rows.push(['Days left on departure day', (90 - count(r.b, X)) + '']);
+        if (r.over === null) rows.push(['Days left on departure day', String(90 - count(r.b, X))]);
         const later = firstOverstay(r.b);
-        if (r.over === null && later !== null) rows.push(['Conflict with a later planned trip', fmt(later)]);
+        if (r.over === null && later !== null) rows.push(['Clashes with a later planned trip on', fmt(later)]);
       }
     }
     out.innerHTML = verdict + rows.map(([k,v]) => '<div class="fact"><span>'+k+'</span><strong>'+v+'</strong></div>').join('');
@@ -323,41 +394,107 @@ td.num{font-variant-numeric:tabular-nums}
     const box = $('chart'); const tip = $('tip');
     box.innerHTML = svg; box.appendChild(tip);
     const s = box.querySelector('svg'), cur = s.querySelector('#cur'), hit = s.querySelector('#hit');
+    const idxAt = cx => { const r = s.getBoundingClientRect(); let i = Math.round(((cx - r.left) * W / r.width - P.l) / (W-P.l-P.r) * (N-1)); return Math.max(0, Math.min(N-1, i)); };
     const move = ev => {
-      const r = s.getBoundingClientRect(); const px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
-      const sx = px * W / r.width; let i = Math.round((sx-P.l)/(W-P.l-P.r)*(N-1)); i = Math.max(0, Math.min(N-1, i));
+      const r = s.getBoundingClientRect(); const i = idxAt(ev.touches ? ev.touches[0].clientX : ev.clientX);
       cur.setAttribute('x1', xs(i)); cur.setAttribute('x2', xs(i)); cur.style.display = '';
       tip.style.display = 'block'; tip.style.left = (xs(i)*r.width/W)+'px'; tip.style.top = (ys(vals[i])*r.height/H)+'px';
       tip.textContent = 'Arrive ' + fmt(TODAY+i) + ': up to ' + vals[i] + ' days';
     };
     hit.addEventListener('mousemove', move); hit.addEventListener('touchmove', move, {passive:true}); hit.addEventListener('touchstart', move, {passive:true});
     hit.addEventListener('mouseleave', () => { tip.style.display = 'none'; cur.style.display = 'none'; });
-    hit.addEventListener('click', ev => { const r = s.getBoundingClientRect(); let i = Math.round(((ev.clientX-r.left)*W/r.width-P.l)/(W-P.l-P.r)*(N-1)); i = Math.max(0,Math.min(N-1,i)); $('c-in').value = toISO(TODAY+i); $('c-out').value=''; renderCalc(); $('c-in').scrollIntoView({behavior:'smooth',block:'center'}); });
+    hit.addEventListener('click', ev => { $('c-in').value = toISO(TODAY + idxAt(ev.clientX)); $('c-out').value = ''; renderCalc(); $('c-in').scrollIntoView({behavior:'smooth',block:'center'}); });
   }
 
-  // ---------- load ----------
+  // ---------- storage on this device ----------
+  const KEY = 'schengen-tracker-v1';
+  const SEED = {wedding:'2027-01-19', trips:[
+    {id:'trip-2026-06-23', entry:'2026-06-23', exit:'2026-07-15', note:'Faro', planned:false},
+    {id:'trip-2026-07-27', entry:'2026-07-27', exit:'2026-09-09', note:'', planned:false}
+  ]};
   const status = (t, err) => { const el = $('save-status'); el.textContent = t; el.classList.toggle('err', !!err); };
-  const ISO = /^\d{4}-\d{2}-\d{2}$/;
-  async function load(){
+  function clean(d){
+    if (!d || !Array.isArray(d.trips)) throw new Error('this is not a tracker backup');
+    d.trips.forEach(t => {
+      if (!ISO.test(t.entry) || (t.exit && !ISO.test(t.exit)) || (t.exit && t.exit < t.entry)) throw new Error('check the dates on the trip starting ' + t.entry);
+      t.id = t.id || ('trip-' + t.entry + '-' + Math.random().toString(36).slice(2,6)); t.planned = !!t.planned; if (!t.exit) t.exit = null;
+    });
+    d.wedding = d.wedding || SEED.wedding;
+    return d;
+  }
+  function persist(){
+    try { localStorage.setItem(KEY, JSON.stringify(data)); status('Saved on this device'); return true; }
+    catch(e){ status('Could not save on this device. Private browsing may be on.', true); return false; }
+  }
+  function load(){
     try {
-      const r = await fetch('trips.json', {cache:'no-store'});
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const d = await r.json();
-      if (!Array.isArray(d.trips)) throw new Error('there is no "trips" list');
-      for (const t of d.trips) if (!ISO.test(t.entry) || !ISO.test(t.exit) || t.exit < t.entry) throw new Error('check the dates on the trip starting ' + t.entry + '. Use YYYY-MM-DD, with departure on or after arrival.');
-      d.trips.forEach((t,i) => { t.id = t.id || ('t'+i); t.planned = !!t.planned; });
-      data = d; if (d.wedding) WED = toNum(d.wedding);
-      status('Loaded from trips.json');
-    } catch(e){
-      status('Could not read trips.json: ' + e.message, true);
-    }
+      const raw = localStorage.getItem(KEY);
+      if (raw){ data = clean(JSON.parse(raw)); status('Saved on this device'); }
+      else { data = clean(JSON.parse(JSON.stringify(SEED))); persist(); }
+    } catch(e){ data = clean(JSON.parse(JSON.stringify(SEED))); status('Saved data was unreadable, so the starting trips were loaded.', true); }
+    WED = toNum(data.wedding);
     render();
   }
+  async function mutate(change){ change(data); const ok = persist(); render(); return ok; }
 
-  // ---------- events ----------
+  // ---------- trip form ----------
+  function resetForm(){
+    editingId = null; $('t-in').value = ''; $('t-out').value = ''; $('t-note').value = ''; $('t-plan').checked = false;
+    $('t-add').textContent = 'Add trip'; $('t-cancel').hidden = true; $('f-title').textContent = 'Add a confirmed trip'; $('t-err').textContent = '';
+  }
+  function startEdit(t){
+    editingId = t.id; $('t-in').value = t.entry; $('t-out').value = t.exit || ''; $('t-note').value = t.note || ''; $('t-plan').checked = !!t.planned;
+    $('t-add').textContent = 'Save changes'; $('t-cancel').hidden = false; $('f-title').textContent = 'Edit trip'; $('t-err').textContent = '';
+    $('f-title').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+  function validate(e, x, planned, ignoreId){
+    if (!e) return 'Enter the arrival date.';
+    if (planned && !x) return 'A planned trip needs a departure date.';
+    if (x && x < e) return 'Departure must be on or after arrival.';
+    if (!x && !planned && data.trips.some(t => t.id !== ignoreId && !t.planned && !t.exit)) return 'Another trip is already marked as still here. Add its departure date first.';
+    const eN = toNum(e), xN = x ? toNum(x) : Math.max(eN, TODAY);
+    const clash = data.trips.find(t => t.id !== ignoreId && !(xN < toNum(t.entry) || eN > exitOf(t)));
+    if (clash) return 'This overlaps the trip from ' + fmt(toNum(clash.entry)) + (clash.exit ? ' to ' + fmt(toNum(clash.exit)) : ' (still here)') + '. Edit that one instead.';
+    return '';
+  }
+  $('t-add').addEventListener('click', async () => {
+    const e = $('t-in').value, x = $('t-out').value || null, note = $('t-note').value.trim(), planned = $('t-plan').checked;
+    const err = validate(e, x, planned, editingId); $('t-err').textContent = err; if (err) return;
+    const id = editingId;
+    const ok = id
+      ? await mutate(d => { const t = d.trips.find(z => z.id === id); if (t) Object.assign(t, {entry:e, exit:x, note, planned}); })
+      : await mutate(d => { d.trips.push({id:'t'+Date.now(), entry:e, exit:x, note, planned}); });
+    if (ok) resetForm();
+  });
+  $('t-cancel').addEventListener('click', resetForm);
+  $('c-save').addEventListener('click', async () => {
+    const e = $('c-in').value, x = $('c-out').value; const err = validate(e, x, true, null);
+    if (err){ status(err, true); return; }
+    const ok = await mutate(d => { d.trips.push({id:'t'+Date.now(), entry:e, exit:x, note:$('c-note').value.trim(), planned:true}); });
+    if (ok) $('c-note').value = '';
+  });
+
+  // ---------- backup ----------
+  $('b-export').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'schengen-backup-' + toISO(TODAY) + '.json';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    $('b-msg').textContent = 'Backup downloaded. Keep it somewhere safe, such as email or iCloud Drive.';
+  });
+  $('b-import').addEventListener('change', async ev => {
+    const f = ev.target.files[0]; if (!f) return;
+    try {
+      const d = clean(JSON.parse(await f.text()));
+      if (!confirm('Replace the trips on this device with the ' + d.trips.length + ' trips in this backup?')) return;
+      data = d; WED = toNum(data.wedding); persist(); render(); $('b-msg').textContent = 'Backup restored.';
+    } catch(e){ $('b-msg').textContent = 'Could not restore: ' + e.message + '.'; }
+    ev.target.value = '';
+  });
+
   $('use-plans').addEventListener('change', render);
   $('c-in').addEventListener('input', renderCalc);
   $('c-out').addEventListener('input', renderCalc);
+
   load();
 })();
 </script>
